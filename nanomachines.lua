@@ -2,28 +2,28 @@ local component = require("component")
 local modem = component.modem
 local shell = require("shell")
 local event = require("event")
-
+ 
 local args, opts = shell.parse(...)
-
+ 
 local commport = 1
 local nm = "nanomachines"
 local effects = {}
 local have_effects = false
-
+ 
 if #args == 0 then
   print("Commands:")
   print("status [all] ", "Print player and nanomachine status. Adding 'all' queries all input channels for status")
   print("examine      ", "Go through all input channels and check for effects. The list is stored and displayed on 'status' and 'list' commands")
-  print("list         ", "List all stored input channel information (unimplemented)")
+  print("list         ", "List all stored input channel information")
   print("on <input>   ", "Turn on input #<input>")
   print("off [<input>]", "Turn off input #<input>. Without a specific input it deactivates all")
   print("save         ", "Store nanomachine configuration in a fresh nanomachine item in your inventory. Note: This isn't officially documented, so it might go away.")
   print("drain        ", "Checks nanomachine power drain")
   os.exit()
 end
-
+ 
 modem.open(commport)
-
+ 
 function send(command, arg1, arg2)
   if arg1 == nil then
     return modem.broadcast(commport, nm, command)
@@ -33,7 +33,7 @@ function send(command, arg1, arg2)
     return modem.broadcast(commport, nm, command, arg1, arg2)
   end
 end
-
+ 
 function receive(answer)
   local ev, rec, send, port, dist, check_nm, message, m_arg1, m_arg2 = event.pull(10, "modem_message", nil, nil, commport, nil, nm)
   if ev == nil then
@@ -46,7 +46,7 @@ function receive(answer)
   end
   return m_arg1, m_arg2
 end
-
+ 
 -- Establish connection
 send("setResponsePort", commport)
 while true do
@@ -57,7 +57,7 @@ while true do
   end
   break
 end
-
+ 
 function activeEffects()
   send("getActiveEffects")
   x1 = receive("effects")
@@ -67,7 +67,7 @@ function activeEffects()
   end
   print("Active Effects:", r)
 end
-
+ 
 function activate(inp)
   send("setInput", inp, true)
   local x1, x2 = receive("input")
@@ -76,7 +76,7 @@ function activate(inp)
     os.exit()
   end
 end
-
+ 
 function deactivate(inp)
   send("setInput", inp, false)
   local x1, x2 = receive("input")
@@ -85,7 +85,7 @@ function deactivate(inp)
     os.exit()
   end
 end
-
+ 
 function readEffects(player)
   effects = {}
   local f = io.open(player..".inputs", "r")
@@ -98,21 +98,21 @@ function readEffects(player)
     f:close()
   end
 end
-
+ 
 function printEffects()
   for i, e in pairs(effects) do
     print("Input #"..i, e)
   end
 end
-
+ 
 send("getName")
 local name, _ = receive("name")
-
+ 
 readEffects(name)
-
-
+ 
+ 
 print("Connection established! Hello "..name.."!")
-
+ 
 if args[1] == "status" then
   local h1, h2, h3
   send("getPowerState")
@@ -184,6 +184,13 @@ elseif args[1] == "examine" then
       f:write(i, ",", e, "\n")
     end
     f:close()
+  end
+elseif args[1] == "list" then
+  if have_effects then
+    print("Known input effects:")
+    printEffects()
+  else
+    print("Input effects are unknown - run examine first")
   end
 elseif args[1] == "on" then
   if #args < 2 then
